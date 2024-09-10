@@ -1,8 +1,10 @@
 from math import sqrt, exp, log
 import numpy as np
+import pandas as pd
+import plotly.express as px
 
 class Segmento:
-    def __init__(self, diametro, st, sl, l, v_in):
+    def __init__(self, diametro, espaçamento_transversal, espaçamento_longitudinal, l, v_in):
         """
         diametro -> diametro da célula
         st -> passo transversal entre células
@@ -11,8 +13,8 @@ class Segmento:
         v_in -> velocidade de entrada do ar
         """
         self.diametro = diametro
-        self.st = st
-        self.sl = sl
+        self.st = espaçamento_transversal + diametro
+        self.sl = espaçamento_longitudinal + diametro
         self.l = l
         self.v_in = v_in
         # Pre-calculate sd for reuse
@@ -103,7 +105,6 @@ class Segmento:
         transf_de_calor = coeficiente_h * area_transferencia_calor * diferenca_media_log_temp
 
         return temp_saida, diferenca_media_log_temp, transf_de_calor
-        
 
 # Testing the code
 
@@ -118,22 +119,41 @@ temp_super = 40
 temp_entr = 30
 calor_especifico = 1007
 
-seg = Segmento(0.018, 0.019, 0.019, 0.065, 5)
-v_max = seg.VelocidadeMaxima()
-re = seg.NumeroDeReynolds(densidade, viscosidade)
-nu, nu_corrigido = seg.NumeroDeNusselt(densidade, viscosidade, pr_medio, pr_superficie, numero_fileiras)
-coeficiente_h = seg.CoeficienteDeTransferenciaDeCalor(densidade, viscosidade, pr_medio, pr_superficie, numero_fileiras, condutividade_termica)
-vazao_massica = seg.VazaoMassica(densidade, numero_de_celulas_transversal)
-temp_saida, diferenca_media_log_temp, transf_de_calor = seg.TransferenciaDeCalor(densidade, numero_de_celulas_transversal, numero_fileiras, temp_super, temp_entr, viscosidade, pr_medio, pr_superficie, condutividade_termica, calor_especifico)
+# seg = Segmento(0.018, 0.001, 0.001, 0.065, 5)
+# v_max = seg.VelocidadeMaxima()
+# re = seg.NumeroDeReynolds(densidade, viscosidade)
+# nu, nu_corrigido = seg.NumeroDeNusselt(densidade, viscosidade, pr_medio, pr_superficie, numero_fileiras)
+# coeficiente_h = seg.CoeficienteDeTransferenciaDeCalor(densidade, viscosidade, pr_medio, pr_superficie, numero_fileiras, condutividade_termica)
+# vazao_massica = seg.VazaoMassica(densidade, numero_de_celulas_transversal)
+# temp_saida, diferenca_media_log_temp, transf_de_calor = seg.TransferenciaDeCalor(densidade, numero_de_celulas_transversal, numero_fileiras, temp_super, temp_entr, viscosidade, pr_medio, pr_superficie, condutividade_termica, calor_especifico)
+
+espacamento_transversal = np.arange(0.001, 0.021, 0.001)
+espacamento_longitudinal = np.arange(0.001, 0.021, 0.001)
+transf_de_cal = []
+
+for espacamento_tr in espacamento_transversal:
+  for espacamento_long in espacamento_longitudinal:
+
+    seg = Segmento(0.018, espacamento_tr, espacamento_long, 0.065, 5)
+    v_max = seg.VelocidadeMaxima()
+    re = seg.NumeroDeReynolds(densidade, viscosidade)
+    nu, nu_corrigido = seg.NumeroDeNusselt(densidade, viscosidade, pr_medio, pr_superficie, numero_fileiras)
+    coeficiente_h = seg.CoeficienteDeTransferenciaDeCalor(densidade, viscosidade, pr_medio, pr_superficie, numero_fileiras, condutividade_termica)
+    vazao_massica = seg.VazaoMassica(densidade, numero_de_celulas_transversal)
+    temp_saida, diferenca_media_log_temp, transf_de_calor = seg.TransferenciaDeCalor(densidade, numero_de_celulas_transversal, numero_fileiras, temp_super, temp_entr, viscosidade, pr_medio, pr_superficie, condutividade_termica, calor_especifico)
+    transf_de_cal.append(transf_de_calor)
 
 
-print(f"Velocidade Máxima: {v_max:.2f} m/s")
-print(f"Número de Reynolds: {re:.2f}")
-print(f"Número de Nusselt: {nu:.2f}")
-print(f"Número de Nusselt Corrigido: {nu_corrigido:.2f}")
-print(f"Coeficiente de transferência de calor: {coeficiente_h:.2f}")
-print(f"Vazão mássica: {vazao_massica:.4f} kg/s")
-print(f"Temperatura de saida: {temp_saida:.2f} C")
-print(f"Diferenca media logartimica de temperatura: {diferenca_media_log_temp:.3f} C")
-print(f"Transferencia de calor: {transf_de_calor:.3f} W")
+data = {
+    'Espacamento Transversal': np.repeat(espacamento_transversal, len(espacamento_longitudinal)),
+    'Espacamento Longitudinal': np.tile(espacamento_longitudinal, len(espacamento_transversal)),
+    'Transf de Cal': transf_de_cal
+}
 
+df = pd.DataFrame(data)
+
+# Criando o gráfico de dispersão
+fig = px.scatter(df, x='Espacamento Transversal', y='Espacamento Longitudinal', color='Transf de Cal',
+                 color_continuous_scale='Viridis', title='Gráfico de Dispersão de Transferência de Calor')
+
+fig.show()
